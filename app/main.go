@@ -78,6 +78,15 @@ func main() {
 			} 
 
 			targetDir := parts[1]
+			
+			if targetDir == "~" {
+				homeDir := os.Getenv("HOME")
+				if homeDir == "" {
+					fmt.Fprintln(os.Stderr, "cd: HOME not set")
+					continue
+				}
+				targetDir = homeDir
+			}
 
 			err := os.Chdir(targetDir)
 			if err != nil {
