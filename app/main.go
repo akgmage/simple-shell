@@ -35,6 +35,19 @@ func main() {
 			continue
 		}
 
+		if parts[0] == "type" {
+			if len(parts) < 2 {
+				continue
+			}
+			cmdName := parts[1]
+			if cmdName == "echo" || cmdName == "exit" || cmdName == "type" {
+				fmt.Printf("%s is a shell builtin\n", cmdName)
+			} else {
+				fmt.Printf("%s: not found\n", cmdName)
+			}
+			continue
+		}
+
 		fmt.Println(command + ": command not found")
 	}
 }
