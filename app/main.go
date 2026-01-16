@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"path/filepath"
+	"os/exec"
 )
 
 // Ensures gofmt doesn't remove the "fmt" import in stage 1 (feel free to remove this!)
@@ -79,6 +80,21 @@ func main() {
 			continue
 		}
 
-		fmt.Println(command + ": command not found")
+		execPath := findInPath(parts[0])
+		if execPath != "" {
+			// execute
+			cmd := exec.Command(execPath, parts[1:]...)
+			cmd.Args = parts
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+
+			err := 	cmd.Run()
+			if err != nil {
+				fmt.Fprintln(os.Stderr	, "Error executing command:", err)
+			}
+		} else {
+			fmt.Println(parts[0] + ": command not found")
+		}	
 	}
 }
