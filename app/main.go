@@ -61,12 +61,22 @@ func main() {
 			continue
 		}
 
+		if parts[0] == "pwd" {
+			cwd, err := os.Getwd()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error getting current directory:", err)
+			} else {
+				fmt.Println(cwd)
+			}
+			continue
+		}
+
 		if parts[0] == "type" {
 			if len(parts) < 2 {
 				continue
 			}
 			cmdName := parts[1]
-			if cmdName == "echo" || cmdName == "exit" || cmdName == "type" {
+			if cmdName == "echo" || cmdName == "exit" || cmdName == "type" || cmdName == "pwd" {
 				fmt.Printf("%s is a shell builtin\n", cmdName)
 			} else {
 				// search in PATH
