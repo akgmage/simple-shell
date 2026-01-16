@@ -24,6 +24,16 @@ func main() {
 		if command == "exit" {
 			os.Exit(0)
 		}
+		
+		parts := strings.Fields(command)
+		if len(parts) == 0 {
+			continue
+		}
+
+		if parts[0] == "echo" {
+			fmt.Println(strings.Join(parts[1:], " "))
+			continue
+		}
 
 		fmt.Println(command + ": command not found")
 	}
