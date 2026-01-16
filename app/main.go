@@ -71,6 +71,21 @@ func main() {
 			continue
 		}
 
+		if parts[0] == "cd" {
+			if len(parts) < 2 {
+				fmt.Fprintln(os.Stderr, "cd: missing argument")
+				continue
+			} 
+
+			targetDir := parts[1]
+
+			err := os.Chdir(targetDir)
+			if err != nil {
+				fmt.Printf("cd: %s: No such file or directory\n", targetDir)
+			}
+			continue
+		}
+
 		if parts[0] == "type" {
 			if len(parts) < 2 {
 				continue
