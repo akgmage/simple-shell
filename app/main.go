@@ -45,15 +45,26 @@ func parseCommand(input string) []string {
 	for i := 0; i < len(input); i++ {
 		char := input[i]
 		
-		// handle backslash escaping outside single quotes
-		if char == '\\' && !inSingleQuote  && !inDoubleQuote {
-			if i+1 < len(input) {
-				i++
-				nextChar := input[i]
-				currentArg.WriteByte(nextChar)
-			}	
-			// if baskslash ar end of ip, ignore it
+		if char == '\\' && !inSingleQuote {
+			if inDoubleQuote {
+				if i+1 < len(input) {
+					nextChar := input[i+1]
+					if nextChar == '"' || nextChar == '\\' || nextChar == '$' || nextChar == '`' || nextChar == '\n' {
+						i++
+						currentArg.WriteByte(nextChar)
+					} else {
+						currentArg.WriteByte('\\')
+					}
+				}
+				continue
+			} else {
+				if i+1 < len(input) {
+					i++
+					nextChar := input[i]
+					currentArg.WriteByte(nextChar)
+				}	
 			continue
+			}
 		}
 		if char == '\'' && !inDoubleQuote {
 			// toggle single quote mode only
