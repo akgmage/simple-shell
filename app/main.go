@@ -36,6 +36,40 @@ func findInPath(cmdName string) string {
 	return ""
 }
 
+func parseCommand(input string) []string {
+	var args []string
+	var currentArg strings.Builder
+	inSingleQuote := false
+
+	for i := 0; i < len(input); i++ {
+		char := input[i]
+
+		if char == '\'' {
+			// toggle single quote mode
+			inSingleQuote = !inSingleQuote
+		} else if char == ' ' || char == '\t' {
+			if inSingleQuote {
+				// preserve whitespace since its inside quotes
+				currentArg.WriteByte(char)
+			} else {
+				if currentArg.Len() > 0 {
+					args = append(args, currentArg.String())
+					currentArg.Reset()
+				}
+			}
+		} else {
+			// wriite regular character
+			currentArg.WriteByte(char)
+		}
+	}
+	// add the last arg if any
+	if currentArg.Len() > 0 {
+		args = append(args, currentArg.String())
+	}
+
+	return args
+}
+
 func main() {
 	for {
 	        fmt.Print("$ ")
@@ -51,7 +85,7 @@ func main() {
 			os.Exit(0)
 		}
 		
-		parts := strings.Fields(command)
+		parts := parseCommand(command)
 		if len(parts) == 0 {
 			continue
 		}
