@@ -40,15 +40,19 @@ func parseCommand(input string) []string {
 	var args []string
 	var currentArg strings.Builder
 	inSingleQuote := false
+	inDoubleQuote := false
 
 	for i := 0; i < len(input); i++ {
 		char := input[i]
 
-		if char == '\'' {
-			// toggle single quote mode
+		if char == '\'' && !inDoubleQuote {
+			// toggle single quote mode only
 			inSingleQuote = !inSingleQuote
+		} else if char == '"' && !inSingleQuote {
+			// toggle double quote mode only
+			inDoubleQuote = !inDoubleQuote	
 		} else if char == ' ' || char == '\t' {
-			if inSingleQuote {
+			if inSingleQuote || inDoubleQuote {
 				// preserve whitespace since its inside quotes
 				currentArg.WriteByte(char)
 			} else {
