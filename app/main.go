@@ -95,14 +95,21 @@ func parseCommand(input string) []string {
 	return args
 }
 
-func parseRedirection(parts []string) ([]string, string) {
+func parseRedirection(parts []string) ([]string, string, string) {
 	var cmdArgs []string
 	var outputFile string
-
+	var errorFile string
 	for i := 0; i < len(parts); i++ {
 		arg := parts[i]
-
-		if arg == ">" || arg == "1>" {
+		if arg == "2>" {
+			// next arg is stderr file
+			if i+1 < len(parts) {
+				errorFile = parts[i+1]
+				i++
+			}
+		} else if strings.HasPrefix(arg, "2>") {
+			errorFile = arg[2:]
+		} else if arg == ">" || arg == "1>" {
 			if i+1 < len(parts) {
 				outputFile = parts[i+1]
 				i++
@@ -117,7 +124,7 @@ func parseRedirection(parts []string) ([]string, string) {
 			cmdArgs = append(cmdArgs, arg)
 		}
 	}
-	return cmdArgs, outputFile
+	return cmdArgs, outputFile, errorFile
 }
 
 func main() {
@@ -140,7 +147,7 @@ func main() {
 			continue
 		}
 		// handle redirection
-		cmdParts, outputFile := parseRedirection(parts)
+		cmdParts, outputFile, errorFile := parseRedirection(parts)
 		if len(cmdParts) == 0 {
 			continue
 		}
@@ -159,6 +166,15 @@ func main() {
 				file.Close()
 			} else {
 				fmt.Println(output)
+			}
+
+			if errorFile != "" {
+				file, err := os.Create(errorFile)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error creating file:", err)
+					continue
+				}
+				file.Close()
 			}
 			continue
 		}
@@ -221,6 +237,8 @@ func main() {
 			// execute
 			cmd := exec.Command(execPath, cmdParts[1:]...)
 			cmd.Args = cmdParts
+
+			var stdoutDest *os.File
 			
 			if outputFile != "" {
 				file, err := os.Create(outputFile)
@@ -228,26 +246,32 @@ func main() {
 					fmt.Fprintln(os.Stderr, "Error creating file:", err)
 					continue
 				}
-				cmd.Stdout= file
-				cmd.Stderr = os.Stderr
-				cmd.Stdin = os.Stdin
 
-				err = cmd.Run()
-				file.Close()
-				if err != nil {
-				
-				}
+				stdoutDest = file
+				defer file.Close()
+
 			} else {
-
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				cmd.Stdin = os.Stdin
-
-				err := 	cmd.Run()
-				if err != nil {
-					fmt.Fprintln(os.Stderr	, "Error executing command:", err)
-				}
+				stdoutDest = os.Stdout
 			}
+
+			var stderrDest *os.File
+			if errorFile != "" {
+				file, err := os.Create(errorFile)
+				if err != nil {
+					fmt.Println(os.Stderr, "Error creating file:", err)
+					continue
+				}
+				
+				stderrDest = file
+				defer file.Close()
+			} else {
+				stderrDest = os.Stderr
+			}
+			cmd.Stdout = stdoutDest
+			cmd.Stderr = stderrDest
+			cmd.Stdin = os.Stdin
+
+			cmd.Run()
 		} else {
 			fmt.Println(cmdParts[0] + ": command not found")
 		}	
