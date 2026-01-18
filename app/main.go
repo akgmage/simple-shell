@@ -95,15 +95,25 @@ func parseCommand(input string) []string {
 	return args
 }
 
-func parseRedirection(parts []string) ([]string, string, string, bool) {
+func parseRedirection(parts []string) ([]string, string, string, bool, bool) {
 	var cmdArgs []string
 	var outputFile string
 	var errorFile string
 	var appendMode bool
+	var appendErrorMode bool
 
 	for i := 0; i < len(parts); i++ {
 		arg := parts[i]
-		if arg == ">>" || arg == "1>>" {
+		if arg == "2>>" {
+			if i+1 < len(parts) {
+				errorFile = parts[i+1]
+				appendErrorMode = true
+				i++
+			}
+		} else if strings.HasPrefix(arg, "2>>") {
+			errorFile = arg[3:]
+			appendErrorMode = true
+		} else if arg == ">>" || arg == "1>>" {
 			if i+1 < len(parts) {
 				outputFile = parts[i+1]
 				i++
@@ -121,9 +131,11 @@ func parseRedirection(parts []string) ([]string, string, string, bool) {
 			if i+1 < len(parts) {
 				errorFile = parts[i+1]
 				i++
+				appendErrorMode = false
 			}
 		} else if strings.HasPrefix(arg, "2>") {
 			errorFile = arg[2:]
+			appendErrorMode = false
 		} else if arg == ">" || arg == "1>" {
 			if i+1 < len(parts) {
 				outputFile = parts[i+1]
@@ -141,7 +153,7 @@ func parseRedirection(parts []string) ([]string, string, string, bool) {
 			cmdArgs = append(cmdArgs, arg)
 		}
 	}
-	return cmdArgs, outputFile, errorFile, appendMode
+	return cmdArgs, outputFile, errorFile, appendMode, appendErrorMode
 }
 
 func main() {
@@ -164,7 +176,7 @@ func main() {
 			continue
 		}
 		// handle redirection
-		cmdParts, outputFile, errorFile, appendMode := parseRedirection(parts)
+		cmdParts, outputFile, errorFile, appendMode, appendErrorMode := parseRedirection(parts)
 		if len(cmdParts) == 0 {
 			continue
 		}
@@ -194,7 +206,14 @@ func main() {
 			}
 
 			if errorFile != "" {
-				file, err := os.Create(errorFile)
+				var file *os.File
+				var err error
+
+				if appendErrorMode {
+					file, err = os.OpenFile(errorFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				} else {
+					file, err = os.Create(errorFile)
+				}
 				if err != nil {
 					fmt.Fprintln(os.Stderr, "Error creating file:", err)
 					continue
@@ -288,17 +307,21 @@ func main() {
 
 			var stderrDest *os.File
 			if errorFile != "" {
-				file, err := os.Create(errorFile)
+				if appendErrorMode {
+					stderrDest, err = os.OpenFile(errorFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				} else {
+					stderrDest, err = os.Create(errorFile)
+				}
 				if err != nil {
 					fmt.Println(os.Stderr, "Error creating file:", err)
 					continue
 				}
 				
-				stderrDest = file
-				defer file.Close()
+				defer stderrDest.Close()
 			} else {
 				stderrDest = os.Stderr
 			}
+
 			cmd.Stdout = stdoutDest
 			cmd.Stderr = stderrDest
 			cmd.Stdin = os.Stdin
