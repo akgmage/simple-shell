@@ -95,6 +95,31 @@ func parseCommand(input string) []string {
 	return args
 }
 
+func parseRedirection(parts []string) ([]string, string) {
+	var cmdArgs []string
+	var outputFile string
+
+	for i := 0; i < len(parts); i++ {
+		arg := parts[i]
+
+		if arg == ">" || arg == "1>" {
+			if i+1 < len(parts) {
+				outputFile = parts[i+1]
+				i++
+			}
+		} else if strings.HasPrefix(arg, ">") || strings.HasPrefix(arg, "1>") {
+			if strings.HasPrefix(arg, "1>") {
+				outputFile = arg[2:]
+			} else {
+				outputFile = arg[1:]
+			}
+		} else {
+			cmdArgs = append(cmdArgs, arg)
+		}
+	}
+	return cmdArgs, outputFile
+}
+
 func main() {
 	for {
 	        fmt.Print("$ ")
@@ -114,13 +139,31 @@ func main() {
 		if len(parts) == 0 {
 			continue
 		}
-
-		if parts[0] == "echo" {
-			fmt.Println(strings.Join(parts[1:], " "))
+		// handle redirection
+		cmdParts, outputFile := parseRedirection(parts)
+		if len(cmdParts) == 0 {
 			continue
 		}
 
-		if parts[0] == "pwd" {
+		if cmdParts[0] == "echo" {
+			output := strings.Join(cmdParts[1:], " ")
+
+			if outputFile != "" {
+				// redirect - write to file
+				file, err := os.Create(outputFile)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error creating file:", err)
+					continue
+				}
+				fmt.Fprintln(file, output)
+				file.Close()
+			} else {
+				fmt.Println(output)
+			}
+			continue
+		}
+
+		if cmdParts[0] == "pwd" {
 			cwd, err := os.Getwd()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error getting current directory:", err)
@@ -130,13 +173,13 @@ func main() {
 			continue
 		}
 
-		if parts[0] == "cd" {
-			if len(parts) < 2 {
+		if cmdParts[0] == "cd" {
+			if len(cmdParts) < 2 {
 				fmt.Fprintln(os.Stderr, "cd: missing argument")
 				continue
 			} 
 
-			targetDir := parts[1]
+			targetDir := cmdParts[1]
 			
 			if targetDir == "~" {
 				homeDir := os.Getenv("HOME")
@@ -154,11 +197,11 @@ func main() {
 			continue
 		}
 
-		if parts[0] == "type" {
-			if len(parts) < 2 {
+		if cmdParts[0] == "type" {
+			if len(cmdParts) < 2 {
 				continue
 			}
-			cmdName := parts[1]
+			cmdName := cmdParts[1]
 			if cmdName == "echo" || cmdName == "exit" || cmdName == "type" || cmdName == "pwd" {
 				fmt.Printf("%s is a shell builtin\n", cmdName)
 			} else {
@@ -173,21 +216,40 @@ func main() {
 			continue
 		}
 
-		execPath := findInPath(parts[0])
+		execPath := findInPath(cmdParts[0])
 		if execPath != "" {
 			// execute
-			cmd := exec.Command(execPath, parts[1:]...)
-			cmd.Args = parts
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
+			cmd := exec.Command(execPath, cmdParts[1:]...)
+			cmd.Args = cmdParts
+			
+			if outputFile != "" {
+				file, err := os.Create(outputFile)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error creating file:", err)
+					continue
+				}
+				cmd.Stdout= file
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
 
-			err := 	cmd.Run()
-			if err != nil {
-				fmt.Fprintln(os.Stderr	, "Error executing command:", err)
+				err = cmd.Run()
+				file.Close()
+				if err != nil {
+				
+				}
+			} else {
+
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
+
+				err := 	cmd.Run()
+				if err != nil {
+					fmt.Fprintln(os.Stderr	, "Error executing command:", err)
+				}
 			}
 		} else {
-			fmt.Println(parts[0] + ": command not found")
+			fmt.Println(cmdParts[0] + ": command not found")
 		}	
 	}
 }
