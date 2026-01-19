@@ -95,6 +95,22 @@ func parseCommand(input string) []string {
 	return args
 }
 
+func openOutputFile(filename string, appendMode bool) (*os.File, error) {
+	if appendMode {
+		return os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	}
+	return os.Create(filename)
+}
+
+func handlePwd() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error getting current directory:", err)
+	} else {
+		fmt.Println(cwd)
+	}
+}
+
 func parseRedirection(parts []string) ([]string, string, string, bool, bool) {
 	var cmdArgs []string
 	var outputFile string
@@ -107,7 +123,7 @@ func parseRedirection(parts []string) ([]string, string, string, bool, bool) {
 		if arg == "2>>" {
 			if i+1 < len(parts) {
 				errorFile = parts[i+1]
-				appendErrorMode = true
+				appendErrorMode = true // append stderr
 				i++
 			}
 		} else if strings.HasPrefix(arg, "2>>") {
@@ -308,10 +324,13 @@ func main() {
 			var stderrDest *os.File
 			if errorFile != "" {
 				if appendErrorMode {
+					// append to stderr file
 					stderrDest, err = os.OpenFile(errorFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				} else {
+					// overwrite stderr file
 					stderrDest, err = os.Create(errorFile)
 				}
+
 				if err != nil {
 					fmt.Println(os.Stderr, "Error creating file:", err)
 					continue
