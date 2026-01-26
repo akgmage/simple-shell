@@ -183,7 +183,7 @@ func (c *ShellCompleter) Do(line []rune, pos int) ([][]rune, int) {
 	if len(words) == 0 || len(words) > 1 {
 		return nil, 0
 	}
-
+	// check builtins
 	prefix := words[0]
 	var matches [][]rune
 
@@ -191,6 +191,35 @@ func (c *ShellCompleter) Do(line []rune, pos int) ([][]rune, int) {
 		if strings.HasPrefix(b, prefix) {
 			suffix := b[len(prefix):] + " "
 			matches = append(matches, []rune(suffix))
+		}
+	}
+	// search for executables in PATH
+	pathEnv := os.Getenv("PATH")
+	if pathEnv != "" {
+		paths := strings.Split(pathEnv, string(os.PathListSeparator))
+
+		for _, dir := range paths {
+			// check if dir exists
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+			// check each file in dir
+			for _, entry := range entries {
+				if entry.IsDir() {
+					continue
+				}
+
+				fileName := entry.Name()
+				if strings.HasPrefix(fileName, prefix) {
+					// is executable?
+					fullPath := filepath.Join(dir, fileName)
+					if isExecutable(fullPath) {
+						suffix := fileName[len(prefix):] + " "
+						matches = append(matches, []rune(suffix))
+					}
+				}
+			}
 		}
 	}
 	if len(matches) == 0 {
