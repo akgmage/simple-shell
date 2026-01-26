@@ -172,15 +172,45 @@ func parseRedirection(parts []string) ([]string, string, string, bool, bool) {
 	return cmdArgs, outputFile, errorFile, appendMode, appendErrorMode
 }
 
+type ShellCompleter struct {
+	builtins []string
+}
+
+func (c *ShellCompleter) Do(line []rune, pos int) ([][]rune, int) {
+	input := string(line[:pos])
+	words := strings.Fields(input)
+
+	if len(words) == 0 || len(words) > 1 {
+		return nil, 0
+	}
+
+	prefix := words[0]
+	var matches [][]rune
+
+	for _, b := range c.builtins {
+		if strings.HasPrefix(b, prefix) {
+			suffix := b[len(prefix):] + " "
+			matches = append(matches, []rune(suffix))
+		}
+	}
+	if len(matches) == 0 {
+		fmt.Print("\x07") // bell character
+		return nil, 0
+	}
+	return matches, len([]rune(prefix))
+}
+
 func main() {
+
+	completer := &ShellCompleter{
+		builtins: []string{"echo", "exit"},
+	}
 
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt: "$ ",
-		AutoComplete: readline.NewPrefixCompleter(
-			readline.PcItem("echo"),
-			readline.PcItem("exit"),
-		),
+		AutoComplete: completer,
 	})
+
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error initializing readline:", err)
 		os.Exit(1)
