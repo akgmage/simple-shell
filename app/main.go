@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"bufio"
 	"os"
 	"strings"
 	"path/filepath"
 	"os/exec"
+	"github.com/chzyer/readline"
 )
 
 // Ensures gofmt doesn't remove the "fmt" import in stage 1 (feel free to remove this!)
@@ -173,9 +173,21 @@ func parseRedirection(parts []string) ([]string, string, string, bool, bool) {
 }
 
 func main() {
+
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt: "$ ",
+		AutoComplete: readline.NewPrefixCompleter(
+			readline.PcItem("echo"),
+			readline.PcItem("exit"),
+		),
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error initializing readline:", err)
+		os.Exit(1)
+	}
+	defer rl.Close()
 	for {
-	        fmt.Print("$ ")
-		command, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		command, err := rl.Readline()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			os.Exit(1)
